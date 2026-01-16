@@ -96,7 +96,7 @@ export default function Home() {
         {/* expenses */}
         <section className='py-6'>
           <h3 className='text-2xl'>My Expenses</h3>
-          <div className='flex flex-col gap-4 mt-6'>
+          <div className='flex flex-col gap-2 mt-6'>
             {expenses.map((expense) => {
               return (
                 <ExpenseCategoryItem
