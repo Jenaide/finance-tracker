@@ -6,6 +6,7 @@ import { Trash2Icon } from "lucide-react";
 import { useContext } from "react";
 import { FinanceContext, ExpenseCategory, ExpenseItem } from "@/lib/store/finance-context";
 import { toast } from "sonner";
+import { logEvent } from "@/lib/monitor-logger";
 
 interface ViewExpenseModalProps {
   show: boolean;
@@ -25,9 +26,11 @@ export function ViewExpenseModal({ show, onClose, expense }: ViewExpenseModalPro
             await deleteExpenseCategory(expense.id!);
             onClose();
             toast.success("Expense Category successfully Deleted!")
+            await logEvent("SUCCESS", "delete-expense-category", `Deleted income ${expense.id}`);
         } catch (e: any) {
             console.error(e.message);
             toast.error("Unable to deleted expense category")
+            await logEvent("ERROR", "delete-expense-category", e.message, { expense });
         }
     };
 
@@ -42,9 +45,11 @@ export function ViewExpenseModal({ show, onClose, expense }: ViewExpenseModalPro
             };
             await deleteExpenseItem(expense.id!, updatedExpense);
             toast.success("Expense Item successfully Deleted!")
+            await logEvent("SUCCESS", "delete-expense-item", `Deleted income ${expense.id}`);
         } catch (e: any) {
             console.error(e.message);
             toast.error("Unable to deleted expense item.")
+            await logEvent("ERROR", "delete-expense-item", e.message, { expense });
         }
     };
 

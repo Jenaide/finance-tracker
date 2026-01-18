@@ -11,6 +11,7 @@ import { Trash2Icon } from 'lucide-react';
 import { FinanceContext, IncomeItem } from "@/lib/store/finance-context";
 import { AuthContext } from "@/lib/store/auth-context";
 import { toast } from "sonner";
+import { logEvent } from "@/lib/monitor-logger";
 
 interface AddIncomeModalProps {
   show: boolean;
@@ -60,9 +61,17 @@ export function AddIncomeModal({ show, onClose }: AddIncomeModalProps) {
             if (amountRef.current) amountRef.current.value = "";
             if (descriptionRef.current) descriptionRef.current.value = "";
             toast.success("income added successfully")
+            await logEvent("SUCCESS", "add-income", `Income added: ${newIncome.description}`, {
+                amount
+            });
         } catch (e: any) {
             console.error(e.message);
             toast.error("Unable to add Income.")
+            await logEvent("ERROR", "add-income", e.message, {
+                description, 
+                amount,
+                createdAt: newIncome.createdAt
+            })
         }
     };
 
@@ -72,9 +81,11 @@ export function AddIncomeModal({ show, onClose }: AddIncomeModalProps) {
         try {
             await removeIncomeItem(incomeId);
             toast.success("income deleted successfully")
+            await logEvent("SUCCESS", "delete-income", `Deleted income ${incomeId}`);
         } catch (e: any) {
             console.error(e.message);
             toast.error("Unable to delete Income.")
+            await logEvent("ERROR", "delete-income", e.message, { incomeId });
         }
     };
 

@@ -7,6 +7,7 @@ import { Input } from "../ui/input";
 import { FinanceContext, ExpenseCategory, ExpenseItem } from "@/lib/store/finance-context";
 import { Button } from "../ui/button";
 import { toast } from "sonner";
+import { logEvent } from "@/lib/monitor-logger";
 
 interface AddExpensesModalProps {
   show: boolean;
@@ -52,11 +53,20 @@ export function AddExpensesModal({ show, onClose }: AddExpensesModalProps) {
 
             setExpenseAmount("");
             setSelectCategory(null);
-            onClose();
+
             toast.success("Expense Item added!")
+            await logEvent("SUCCESS", "create-expense", `Added expense ${newExpenseItem.title}`, {
+                category: selectCategory,
+                amount: amountNum
+            });
+            onClose();
         } catch (e: any) {
             console.error(e.message);
             toast.success("Unable to add item.")
+            await logEvent("ERROR", "create-expense", e.message, { 
+                category: selectCategory,
+                amount: amountNum
+            })
         }
     };
 
@@ -74,9 +84,14 @@ export function AddExpensesModal({ show, onClose }: AddExpensesModalProps) {
         });
         toast.success("Category created!")
         setShowAddExpense(false);
+        await logEvent("SUCCESS", "create-category", `Category created: ${title}`, { color });
         } catch (e: any) {
             toast.error("Unable to create category.")
             console.error(e.message);
+            await logEvent("ERROR", "create-category", e.message, { 
+                title, 
+                color 
+            });
         }
     };
 
