@@ -1,5 +1,5 @@
 export async function logEvent(level: "ERROR" | "SUCCESS", action: string, message: string, metadata?: any) {
-  const url = process.env.NEXT_PUBLIC_MONITORING_API + "/events";
+  const url = process.env.NEXT_PUBLIC_MONITORING_URL + "/events";
   try {
     await fetch(url, {
       method: "POST",
