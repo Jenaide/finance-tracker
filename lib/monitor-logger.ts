@@ -1,6 +1,7 @@
 export async function logEvent(level: "ERROR" | "SUCCESS", action: string, message: string, metadata?: any) {
+  const url = process.env.NEXT_PUBLIC_MONITORING_API + "/events";
   try {
-    await fetch("http://localhost:3000/events", {
+    await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -12,6 +13,7 @@ export async function logEvent(level: "ERROR" | "SUCCESS", action: string, messa
         action,
         message,
         metadata,
+        occurredAt: new Date().toISOString(),
       }),
     });
   } catch (e) {
