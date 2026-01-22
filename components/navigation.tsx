@@ -12,49 +12,52 @@ import {
   Sun,
 } from "lucide-react"
 import { useTheme } from "next-themes";
-import { useContext } from "react";
+import { useContext, useMemo } from "react";
 
 
 export function Nav() {
     const { setTheme } = useTheme()
-    const context = useContext(AuthContext);
-    if (!context) return null; // ensure context exists
+    const auth = useContext(AuthContext);
+    if (!auth) return null; // ensure context exists
 
-    const { user, loading, logout } = context;
+    const { user, loading, logout } = auth;
 
-    const getUserInitials = () => {
+    const initials = useMemo(() => {
         if (!user) return "??";
-        const names = user.displayName?.split(" ") ?? [];
-        return names.length > 1
-        ? names[0][0] + names[1][0]
-        : user.displayName?.[0] ?? user.email?.[0] ?? "?";
-    };
+        const name = user.displayName?.trim()
+        if(name) {
+            const parts = name.split(" ")
+            if (parts.length > 2) return parts[0][0] + parts[1][0]
+            return parts[0][0]
+        }
+        return user.email?.[0] ?? "?"
+    },[user]);
     
+    if (!user || loading) return null
+
     return (
         <header className="container max-w-4xl px-6 py-6 mx-auto">
             <div className="flex items-center justify-between">
                 {/* user info */}
-                {user && !loading && (
-                <div  className="flex items-center gap-2">
-                    <div className="h-10 w-10 rounded-full overflow-hidden">
+                <div  className="flex items-center gap-3">
+                    <div className="h-10 w-10">
                         <Avatar  className={'object-cover w-full h-full'}>
-                            {user?.photoURL && <AvatarImage src={user.photoURL} alt={user.photoURL}/>}
-                            <AvatarFallback>{getUserInitials()}</AvatarFallback>
+                            {user.photoURL && <AvatarImage src={user.photoURL} alt="profile"/>}
+                            <AvatarFallback>{initials}</AvatarFallback>
                         </Avatar>
                     </div>
                     <h1 className="font-semibold">
-                        Hello, {user?.displayName ?? "User"}
+                        Hello, {user.displayName ?? "User"}
                     </h1>
                 </div>
-                )}
 
                 {/* Actions */}
-                {user && !loading && (
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                     <Button
                         onClick={logout}
                         disabled={loading}
                         variant="outline"
+                        size={"sm"}
                         >
                             Log out
                     </Button>
@@ -62,37 +65,30 @@ export function Nav() {
                      {/* Dropdown menu */}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <div className="relative w-5 h-5 flex items-center justify-between">
-                                <Button variant="outline" size="icon" aria-label="More Options">
-                                    <MoreHorizontalIcon />
-                                </Button>
-                            </div>
+                            <Button variant="outline" size="icon" aria-label="Open menu">
+                                <MoreHorizontalIcon className="h-5 w-5"/>
+                            </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="cursor-pointer">
-                            <DropdownMenuItem onClick={() => setTheme("light")} className="flex justify-between">
-                                
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setTheme("light")}>
+                                <Sun className="mr-2 h-4 w-4" />
                                 Light
-                                <Sun className="size-5" />
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setTheme("dark")} className="flex justify-between">
-                                
+                            <DropdownMenuItem onClick={() => setTheme("dark")}>
+                                <Moon className="mr-2 h-4 w-4" />
                                 Dark
-                                <Moon className="size-5" />
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setTheme("system")} className="flex justify-between">
-                                
+                            <DropdownMenuItem onClick={() => setTheme("system")}>
+                                <ComputerIcon className="mr-2 h-4 w-4" />
                                 System
-                                <ComputerIcon className="size-5" />
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="flex justify-between">
-                                
+                            <DropdownMenuItem>
                                 Statistics
-                                <ChartBarStacked className="size-5" />
+                                <ChartBarStacked className="mr-2 h-4 w-4" />
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
-                )}
             </div>
         </header>
     )

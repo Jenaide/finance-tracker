@@ -10,7 +10,7 @@ import { Chart as ChartJS,
   Tooltip,
   Legend, } from "chart.js";
 import { Bar } from "react-chartjs-2";
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { AddIncomeModal } from '@/components/modals/add-income-modal';
 import { currencyFormatter } from "@/lib/utils";
 import { FinanceContext } from "@/lib/store/finance-context";
@@ -30,32 +30,51 @@ ChartJS.register(
 export default function Home() {
   const [showAddIncomeModal, setShowAddIncomeModal] = useState(false);
   const [showAddExpenseModal, setAddExpenseModal] = useState(false);
-  const [balance, setBalance] = useState(0);
-  const contex = useContext(FinanceContext);
-  const  authContext  = useContext(AuthContext);
+
+  const finance = useContext(FinanceContext);
+  const  auth  = useContext(AuthContext);
+  if (!auth) return null
+
+  const { user, loading } = auth
+  const expenses = finance?.expenses ?? [];
+  const income = finance?.income ?? [];
 
 
-  if (!contex) {
-    // Optional: Render a loader or fallback if context not ready
-    return <div>Loading...</div>;
-  }
-
-  const { expenses, income } = contex;
-
-  useEffect(() => {
-    const newBalance = income.reduce((total, i) => {
-      return total + i.amount
-    }, 0) - expenses.reduce((total, e) => {
-      return total + e.total
-    }, 0)
-
-    setBalance(newBalance)
+  const balance = useMemo(() => {
+    const totalIncome = income.reduce((total, i) => total + i.amount, 0)
+    const totalExpenses = expenses.reduce((total, e) => total + e.total, 0)
+    return totalIncome - totalExpenses
   }, [expenses, income]);
 
-  if (!authContext || !authContext.user) {
+  const chartData = useMemo(() => {
+    return {
+      labels: expenses.map((e) => e.categoryName),
+      datasets: [
+        {
+          label: "Expenses",
+          data: expenses.map((e) => e.total),
+          backgroundColor: expenses.map((e) => e.color),
+          borderWidth: 0,
+        }
+      ]
+    }
+  }, [expenses])
+  
+  if (loading) {
+    return (
+      <main className="container max-w-4xl px-6 py-6 mx-auto animate-pulse">
+        <div className="h-8 w-40 bg-muted rounded mb-4" />
+        <div className="h-12 w-64 bg-muted rounded mb-6" />
+        <div className="h-32 bg-muted rounded" />
+      </main>
+    )
+  }
+
+
+  if (!user) {
     return <SignIn />
   }
-  
+
   return (
     <>
       {/* add income modal */}
@@ -71,80 +90,68 @@ export default function Home() {
       />
 
       <main className="container max-w-4xl px-6 py-6 mx-auto">
-        <section className="py-3">
+        {/* balance */}
+        <section className="py-4">
           <small className="text-md">Your Balance</small>
           <h2 className="text-4xl font-bold">{ currencyFormatter(balance) }</h2>
         </section>
 
-        <section className="flex items-center gap-2 py-3 ">
+        <section className="flex gap-3 py-4">
           <Button
             onClick={() => {setAddExpenseModal(true)}}
             variant="outline"
-            className="cursor-pointer"
             >
               + Expenses
           </Button>
           <Button 
             onClick={() => {setShowAddIncomeModal(true)}}
             variant="outline"
-            className="cursor-pointer"
             >
               + Income
             </Button>
         </section>
 
-        {/* expenses */}
+        {/* expenses list */}
         <section className='py-6'>
-          <h3 className='text-2xl'>My Expenses</h3>
-          <div className='flex flex-col gap-2 mt-6'>
-            {expenses.map((expense) => {
-              return (
-                <ExpenseCategoryItem
-                  key={expense.id}
-                  expense={expense}
-              />
-              )
-            })}
-          </div>
+          <h3 className='text-2xl font-semibold mb-4'>My Expenses</h3>
+
+          {expenses.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No expenses yet.</p>
+          ) : (
+            <div className='flex flex-col gap-3'>
+              {expenses.map((expense) => (
+                  <ExpenseCategoryItem
+                    key={expense.id}
+                    expense={expense}
+                />
+              ))}
+            </div>
+          )}
         </section>
 
         {/* chart */}
         <section className='py-6'>
-          <h3 className='text-2xl mb-4 text-center md:text-left'>Statistics</h3>
-          <div className="w-full max-w-2xl mx-auto">
-            <Bar
-              data={{
-                labels: expenses.map((expense) => expense.categoryName),
-                datasets: [
-                  {
-                    label: "Expense",
-                    data: expenses.map((expense) => expense.total),
-                    backgroundColor: expenses.map((expense) => expense.color),
-                    borderColor: ["border-0"],
-                    borderWidth: 2,
+          <h3 className='text-2xl mb-4 font-semibold'>Statistics</h3>
+
+          {expenses.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Add expenses to see statistics.</p>
+          ) : (
+            <div className="w-full max-w-2xl mx-auto">
+              <Bar
+                data={chartData}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { display: true, position: "top" },
                   },
-                ],
-              }}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: {
-                    display: true,
-                    position: "top",
+                  scales: {
+                    x: { ticks: { autoSkip: false } },
                   },
-                },
-                scales: {
-                  x: {
-                    ticks: {
-                      autoSkip: false,
-                    },
-                  },
-                },
-              }} 
-              height={300}
+                }}
               />
-          </div>
+            </div>
+          )}
         </section>
       </main>
     </>

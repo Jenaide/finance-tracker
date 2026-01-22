@@ -1,5 +1,5 @@
 "use client"
-import { useContext, useState, useRef } from "react";
+import { useContext, useState, useRef, useEffect, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { Modal } from "@/components/modals/generic-modal";
 import { Label } from "../ui/label";
@@ -19,42 +19,43 @@ export function AddExpensesModal({ show, onClose }: AddExpensesModalProps) {
     const [selectCategory, setSelectCategory] = useState<string | null>(null);
     const [showAddExpense, setShowAddExpense] = useState(false);
 
-    const context = useContext(FinanceContext);
-    if (!context) return null; // context must exist
+    const finance = useContext(FinanceContext);
+    if (!finance) return null; // context must exist
 
-    const { expenses, addExpenseItem, addCategory } = context;
+    const { expenses, addExpenseItem, addCategory } = finance;
 
     const titleRef = useRef<HTMLInputElement>(null);
     const colorRef = useRef<HTMLInputElement>(null);
 
+    const amountNum = useMemo(() => Number(expenseAmount), [expenseAmount])
+    
+    useEffect(() => {
+        if(!show) {
+            setExpenseAmount("")
+            setSelectCategory(null)
+            setShowAddExpense(false)
+        }
+    }, [show])
+
+    // add expense item
     const addExpenseItemHandler = async () => {
-        if (!selectCategory) return;
+        if (!selectCategory || amountNum <= 0) return;
+
         const category = expenses.find((e) => e.id === selectCategory);
         if (!category) return;
-
-        const amountNum = Number(expenseAmount);
 
         const newExpenseItem: ExpenseItem = {
             id: uuidv4(),
             amount: amountNum,
             createdAt: new Date(),
-            title: `Expense ${category.items?.length + 1}`,
+            title: `Expense ${(category.items?.length ?? 0) + 1}`,
         };
-        const updatedCategory: ExpenseCategory = {
-            ...category,
-            total: (category.total ?? 0) + amountNum,
-            items: [...(category.items ?? []), newExpenseItem],
-        };
-
 
         try {
             // call context function for adding a single item
             await addExpenseItem(selectCategory, newExpenseItem);
 
-            setExpenseAmount("");
-            setSelectCategory(null);
-
-            toast.success("Expense Item added!")
+            toast.success("Expense added!")
             await logEvent("SUCCESS", "create-expense", `Added expense ${newExpenseItem.title}`, {
                 category: selectCategory,
                 amount: amountNum
@@ -62,7 +63,7 @@ export function AddExpensesModal({ show, onClose }: AddExpensesModalProps) {
             onClose();
         } catch (e: any) {
             console.error(e.message);
-            toast.success("Unable to add item.")
+            toast.success("Unable to add expense.")
             await logEvent("ERROR", "create-expense", e.message, { 
                 category: selectCategory,
                 amount: amountNum
@@ -70,24 +71,29 @@ export function AddExpensesModal({ show, onClose }: AddExpensesModalProps) {
         }
     };
 
+    // add category
     const addCategoryHandler = async () => {
         const title = titleRef.current?.value.trim();
         const color = colorRef.current?.value;
 
-        if (!title || !color) return;
+        if (!title || !color) {
+            toast.error("Please enter title and pick a color.")
+        };
 
         try {
-        await addCategory({
-            categoryName: title,
-            color,
-            total: 0,
-        });
-        toast.success("Category created!")
-        setShowAddExpense(false);
-        await logEvent("SUCCESS", "create-category", `Category created: ${title}`, { color });
+            await addCategory({
+                categoryName: title,
+                color,
+                total: 0,
+            });
+
+            toast.success("Category created!")
+            setShowAddExpense(false);
+
+            await logEvent("SUCCESS", "create-category", `Category created: ${title}`, { color });
         } catch (e: any) {
             toast.error("Unable to create category.")
-            console.error(e.message);
+            console.error(e);
             await logEvent("ERROR", "create-category", e.message, { 
                 title, 
                 color 
@@ -95,14 +101,12 @@ export function AddExpensesModal({ show, onClose }: AddExpensesModalProps) {
         }
     };
 
-    const amountNum = Number(expenseAmount);
-
     return (
         <Modal show={show} onClose={onClose}>
-            <div className="flex flex-col gap-4">
-                <Label>Enter an amount</Label>
+            <div className="flex flex-col gap-2">
+                <Label htmlFor="amount">Enter an amount</Label>
                 <Input 
-                    type={"number"}
+                    type="number"
                     value={expenseAmount}
                     placeholder="Enter an expense amount."
                     onChange={(e)=> {setExpenseAmount(e.target.value)}}
@@ -113,56 +117,65 @@ export function AddExpensesModal({ show, onClose }: AddExpensesModalProps) {
             {amountNum > 0 && (
             <div className="flex flex-col gap-4 mt-6">
                 <div className="flex items-center justify-between">
-                    <h3 className="text-2xl capitalize font-semibold">Select Expense Category</h3>
-                    <Button onClick={()=> {setShowAddExpense(true)}} variant="ghost">+ New Category</Button>
+                    <h3 className="text-xl font-semibold">Select Category</h3>
+                    <Button onClick={()=> setShowAddExpense(true)} variant="ghost">
+                        + New
+                    </Button>
                 </div>
 
                 {showAddExpense && (
-                    <div className="flex items-center justify-between gap-4">
+                    <div className="flex flex-wrap justify-between gap-3">
                         <Input 
-                            type={"text"}
-                            placeholder="Enter Title"
+                            placeholder="Category name"
                             ref={titleRef}
                         />
-                        <Label>Pick Color</Label>
                         <Input
-                            className={"w-24 h-10"}
-                            type={"color"}
+                            className="w-20 h-10"
+                            type="color"
                             ref={colorRef}
                         />
-                        <Button onClick={ addCategoryHandler } variant="outline">Create</Button>
-                        <Button onClick={()=> {setShowAddExpense(false)}} variant="destructive">Cancel</Button>
+                        <Button onClick={ addCategoryHandler } variant="outline">
+                            Create
+                        </Button>
+                        <Button onClick={()=> setShowAddExpense(false)} variant="destructive">
+                            Cancel
+                        </Button>
                     </div>
                 )}
 
-                {expenses.map((expense) => {
-                    return (
+                {/* Category List */}
+                <div className="grid gap-2">
+                    {expenses.map((expense) => (
                         <Button
                             key={expense.id}
                             onClick={() => setSelectCategory(expense.id!)}
-                            variant="ghost" 
-                            className={"flex items-center justify-between rounded-3xl"} 
-                            style={{ boxShadow: expense.id === selectCategory ? "1px 1px 4px" : "none" }}>
+                            className={`flex items-center justify-between rounded-2xl border px-4 py-2 transition
+                                    ${
+                                        expense.id === selectCategory
+                                        ? "border-primary ring-2 ring-primary/40"
+                                        : "border-muted hover:bg-muted/50"
+                                    }
+                                `}
+                            >
                             <div className="flex items-center gap-2">
                                 {/* color circle */}
-                                <div className="w-6.5 h-6.5 rounded-full" 
+                                <span className="w-3.5 h-3.5 rounded-full" 
                                     style={{
                                         backgroundColor: expense.color,
                                     }}
                                 />
-                                <h4 className="capitalize">{expense.categoryName}</h4>
+                                <span className="capitalize">{expense.categoryName}</span>
                             </div>
                         </Button>
-                    )
-                })}
+                    ))}
+                </div>
             </div>
             )}
             {amountNum > 0 && selectCategory && (
-                <div className="mt-6">
+                <div className="mt-6 flex justify-end">
                     <Button
                         onClick={addExpenseItemHandler}
-                        variant="outline"
-                        className={"cursor-pointer"}
+                        variant={"default"}
                         >
                         Add Expense
                     </Button>

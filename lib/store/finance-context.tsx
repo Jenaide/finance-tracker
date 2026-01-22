@@ -25,7 +25,7 @@ export interface ExpenseItem {
 
 export interface ExpenseCategory {
   id?: string;
-  categoryName: string;
+  categoryName: string | undefined;
   items: ExpenseItem[];
   total: number;
   color?: string;
